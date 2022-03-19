@@ -26,9 +26,10 @@ def convert_area(x):
     """
     # NANs are floats
     if isinstance(x, float):
-        return x
+        x =  x
     else:
-        return x.replace('mm²', '').replace(',', '').strip()
+        x =  x.replace('mm²', '').replace(',', '').replace('\xa0mm2','').strip()
+    return x
 
 
 def update_transistor_data():
@@ -50,16 +51,18 @@ def update_transistor_data():
     # some data cleaning/type conversions
     df['Date of introduction'] = pd.to_datetime(df['Date of introduction'])
 
-    df['Process'] = df['Process'].apply(convert_process).astype('float')
+    df['MOS process'] = df['MOS process'].apply(convert_process).astype('float')
     df['Area'] = df['Area'].apply(convert_area).astype('float')
-    df.rename({'Process': 'Process (nm)', 'Area': 'Area (mm²)'}, inplace=True)
+    df.rename({'MOS process': 'MOS process (nm)', 'Area': 'Area (mm²)'}, inplace=True)
 
     todays_date = str(pd.Timestamp('now').date())
     # clear old files
     for f in glob('data/gpu_transistor_count*'):
         os.remove(f)
 
-    df.to_csv('data/gpu_transistor_count_' + todays_date + '.csv', index=False)
+    outName = 'data/gpu_transistor_count_' + todays_date + '.csv'
+    df.to_csv(outName, index=False)
+    os.system('mv %s tmp.txt && cat tmp.txt | grep -v Unknown > %s'%(outName,outName))
 
 
 def plot_gpu_transistor_count(show=True, fit=True):
@@ -78,9 +81,9 @@ def plot_gpu_transistor_count(show=True, fit=True):
     df['Date of introduction'] = df['Date of introduction'].dt.year.astype('int')
 
     f = plt.figure(figsize=(12, 12))
-    plt.scatter(x=df['Date of introduction'], y=df['Transistor count'], alpha=0.75, s=100)
+    plt.scatter(x=df['Date of introduction'], y=df['MOS transistor count'], alpha=0.75, s=100)
     if fit:
-        fit_params = np.polyfit(df['Date of introduction'].values, np.log(df['Transistor count'].values), 1)
+        fit_params = np.polyfit(df['Date of introduction'].values, np.log(df['MOS transistor count'].values), 1)
         x = np.linspace(df['Date of introduction'].min(), df['Date of introduction'].max(), 10)
         log_y = fit_params[1] + fit_params[0] * x
         y = np.exp(log_y)
@@ -100,3 +103,7 @@ def plot_gpu_transistor_count(show=True, fit=True):
     plt.savefig('images/gpu_moores_law_{}.png'.format(filedate))
     if show:
         plt.show()
+
+
+update_transistor_data()
+plot_gpu_transistor_count(show=True, fit=True)
